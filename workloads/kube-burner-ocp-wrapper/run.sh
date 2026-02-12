@@ -21,7 +21,8 @@ KUBE_DIR=${KUBE_DIR:-/tmp}
 ES_INDEX=${ES_INDEX:-ripsaw-kube-burner}
 
 download_binary(){
-  KUBE_BURNER_URL="https://github.com/kube-burner/kube-burner-ocp/releases/download/v${KUBE_BURNER_VERSION}/kube-burner-ocp-V${KUBE_BURNER_VERSION}-${OS}-${HARDWARE}.tar.gz"
+  KUBE_BURNER_REPO=${KUBE_BURNER_REPO:-kube-burner/kube-burner-ocp}
+  KUBE_BURNER_URL="https://github.com/${KUBE_BURNER_REPO}/releases/download/v${KUBE_BURNER_VERSION}/kube-burner-ocp-V${KUBE_BURNER_VERSION}-${OS}-${HARDWARE}.tar.gz"
   curl --fail --retry 8 --retry-all-errors -sS -L "${KUBE_BURNER_URL}" | tar -xzC "${KUBE_DIR}/" kube-burner-ocp
 }
 
