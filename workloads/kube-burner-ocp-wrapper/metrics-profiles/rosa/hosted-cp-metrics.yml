@@ -30,3 +30,213 @@
 - query: cluster_version{type="completed", namespace=~".+{{.HCP_NAMESPACE}}"}
   metricName: clusterVersion
   instant: true
+
+# Karpenter metrics
+
+# Node Provisioning & Lifecycle
+- query: count(karpenter_nodes_current_lifetime_seconds{namespace=~".+{{.HCP_NAMESPACE}}", nodepool!=""})
+  metricName: karpenterNodeCount
+
+- query: sum by (nodepool) (karpenter_nodeclaims_created_total{namespace=~".+{{.HCP_NAMESPACE}}"}) - sum by (nodepool) (karpenter_nodeclaims_terminated_total{namespace=~".+{{.HCP_NAMESPACE}}"})
+  metricName: karpenterActiveNodeClaims
+
+- query: increase(karpenter_nodeclaims_terminated_total{namespace=~".+{{.HCP_NAMESPACE}}"}[5m])
+  metricName: karpenterNodeClaimsTerminated
+
+- query: sum(rate(operator_nodeclaim_status_condition_transition_seconds_sum{namespace=~".+{{.HCP_NAMESPACE}}", type="Launched"}[5m])) / sum(rate(operator_nodeclaim_status_condition_transition_seconds_count{namespace=~".+{{.HCP_NAMESPACE}}", type="Launched"}[5m]))
+  metricName: karpenterNodeClaimLaunchedDurationAvg
+
+- query: sum(rate(operator_nodeclaim_status_condition_transition_seconds_sum{namespace=~".+{{.HCP_NAMESPACE}}", type="Registered"}[5m])) / sum(rate(operator_nodeclaim_status_condition_transition_seconds_count{namespace=~".+{{.HCP_NAMESPACE}}", type="Registered"}[5m]))
+  metricName: karpenterNodeClaimRegisteredDurationAvg
+
+- query: sum(rate(operator_nodeclaim_status_condition_transition_seconds_sum{namespace=~".+{{.HCP_NAMESPACE}}", type="Initialized"}[5m])) / sum(rate(operator_nodeclaim_status_condition_transition_seconds_count{namespace=~".+{{.HCP_NAMESPACE}}", type="Initialized"}[5m]))
+  metricName: karpenterNodeClaimInitializedDurationAvg
+
+- query: sum(rate(karpenter_nodeclaims_termination_duration_seconds_sum{namespace=~".+{{.HCP_NAMESPACE}}"}[5m])) / sum(rate(karpenter_nodeclaims_termination_duration_seconds_count{namespace=~".+{{.HCP_NAMESPACE}}"}[5m]))
+  metricName: karpenterNodeClaimTerminationDurationAvg
+
+- query: sum(rate(karpenter_nodeclaims_instance_termination_duration_seconds_sum{namespace=~".+{{.HCP_NAMESPACE}}"}[5m])) / sum(rate(karpenter_nodeclaims_instance_termination_duration_seconds_count{namespace=~".+{{.HCP_NAMESPACE}}"}[5m]))
+  metricName: karpenterInstanceTerminationDurationAvg
+
+- query: sum(rate(karpenter_nodes_lifetime_duration_seconds_sum{namespace=~".+{{.HCP_NAMESPACE}}", nodepool!=""}[5m])) / sum(rate(karpenter_nodes_lifetime_duration_seconds_count{namespace=~".+{{.HCP_NAMESPACE}}", nodepool!=""}[5m]))
+  metricName: karpenterNodeLifetimeDurationAvg
+
+# Pod Provisioning & Startup
+- query: sum(rate(karpenter_pods_provisioning_startup_duration_seconds_sum{namespace=~".+{{.HCP_NAMESPACE}}"}[5m])) / sum(rate(karpenter_pods_provisioning_startup_duration_seconds_count{namespace=~".+{{.HCP_NAMESPACE}}"}[5m]))
+  metricName: karpenterPodStartupDurationAvg
+
+- query: sum(rate(karpenter_pods_provisioning_bound_duration_seconds_sum{namespace=~".+{{.HCP_NAMESPACE}}"}[5m])) / sum(rate(karpenter_pods_provisioning_bound_duration_seconds_count{namespace=~".+{{.HCP_NAMESPACE}}"}[5m]))
+  metricName: karpenterPodBoundDurationAvg
+
+- query: sum(rate(karpenter_pods_scheduling_decision_duration_seconds_sum{namespace=~".+{{.HCP_NAMESPACE}}"}[5m])) / sum(rate(karpenter_pods_scheduling_decision_duration_seconds_count{namespace=~".+{{.HCP_NAMESPACE}}"}[5m]))
+  metricName: karpenterSchedulingDecisionDurationAvg
+
+- query: karpenter_scheduler_unschedulable_pods_count{namespace=~".+{{.HCP_NAMESPACE}}"}
+  metricName: karpenterUnschedulablePods
+
+- query: karpenter_scheduler_ignored_pods_count{namespace=~".+{{.HCP_NAMESPACE}}"}
+  metricName: karpenterIgnoredPods
+
+- query: max(karpenter_pods_provisioning_unbound_time_seconds{namespace=~".+{{.HCP_NAMESPACE}}"})
+  metricName: karpenterPodUnboundTime
+
+- query: max(karpenter_pods_provisioning_unstarted_time_seconds{namespace=~".+{{.HCP_NAMESPACE}}"})
+  metricName: karpenterPodUnstartedTime
+
+- query: max(karpenter_pods_provisioning_scheduling_undecided_time_seconds{namespace=~".+{{.HCP_NAMESPACE}}"})
+  metricName: karpenterPodSchedulingUndecidedTime
+
+- query: sum by (phase) (karpenter_pods_state{namespace=~".+{{.HCP_NAMESPACE}}"})
+  metricName: karpenterPodState
+
+# Scheduling & AWS API
+- query: histogram_quantile(0.99, sum(rate(karpenter_scheduler_scheduling_duration_seconds_bucket{namespace=~".+{{.HCP_NAMESPACE}}"}[5m])) by (le))
+  metricName: karpenterSchedulingDurationP99
+
+- query: histogram_quantile(0.50, sum(rate(karpenter_scheduler_scheduling_duration_seconds_bucket{namespace=~".+{{.HCP_NAMESPACE}}"}[5m])) by (le))
+  metricName: karpenterSchedulingDurationP50
+
+- query: histogram_quantile(0.99, sum(rate(karpenter_cloudprovider_duration_seconds_bucket{namespace=~".+{{.HCP_NAMESPACE}}"}[5m])) by (le, method))
+  metricName: karpenterCloudProviderDurationP99
+
+- query: floor(sum by (method, error) (increase(karpenter_cloudprovider_errors_total{namespace=~".+{{.HCP_NAMESPACE}}"}[5m])))
+  metricName: karpenterCloudProviderErrors
+
+- query: histogram_quantile(0.99, sum(rate(aws_sdk_go_request_duration_seconds_bucket{namespace=~".+{{.HCP_NAMESPACE}}"}[5m])) by (le, service))
+  metricName: karpenterAwsSdkRequestDurationP99
+
+- query: floor(sum by (service) (increase(aws_sdk_go_request_total{namespace=~".+{{.HCP_NAMESPACE}}"}[5m])))
+  metricName: karpenterAwsSdkRequests
+
+- query: floor(sum by (service) (increase(aws_sdk_go_request_attempt_total{namespace=~".+{{.HCP_NAMESPACE}}"}[5m]))) - floor(sum by (service) (increase(aws_sdk_go_request_total{namespace=~".+{{.HCP_NAMESPACE}}"}[5m])))
+  metricName: karpenterAwsSdkRetries
+
+- query: histogram_quantile(0.99, sum(rate(karpenter_cloudprovider_batcher_batch_size_bucket{namespace=~".+{{.HCP_NAMESPACE}}"}[5m])) by (le, batcher))
+  metricName: karpenterBatchSizeP99
+
+- query: histogram_quantile(0.99, sum(rate(karpenter_cloudprovider_batcher_batch_time_seconds_bucket{namespace=~".+{{.HCP_NAMESPACE}}"}[5m])) by (le, batcher))
+  metricName: karpenterBatchTimeP99
+
+# Consolidation & Disruption
+- query: floor(sum by (decision, reason) (increase(karpenter_voluntary_disruption_decisions_total{namespace=~".+{{.HCP_NAMESPACE}}"}[5m])))
+  metricName: karpenterDisruptionDecisions
+
+- query: histogram_quantile(0.99, sum(rate(karpenter_voluntary_disruption_decision_evaluation_duration_seconds_bucket{namespace=~".+{{.HCP_NAMESPACE}}"}[5m])) by (le))
+  metricName: karpenterDisruptionEvalDurationP99
+
+- query: histogram_quantile(0.50, sum(rate(karpenter_voluntary_disruption_decision_evaluation_duration_seconds_bucket{namespace=~".+{{.HCP_NAMESPACE}}"}[5m])) by (le))
+  metricName: karpenterDisruptionEvalDurationP50
+
+- query: sum by (reason) (karpenter_voluntary_disruption_eligible_nodes{namespace=~".+{{.HCP_NAMESPACE}}"})
+  metricName: karpenterDisruptionEligibleNodesByReason
+
+- query: floor(sum(increase(karpenter_voluntary_disruption_consolidation_timeouts_total{namespace=~".+{{.HCP_NAMESPACE}}"}[5m])))
+  metricName: karpenterConsolidationTimeouts
+
+# Node Resources & NodePool Usage
+- query: karpenter_nodepools_usage{namespace=~".+{{.HCP_NAMESPACE}}", resource_type="cpu"}
+  metricName: karpenterNodePoolCpuUsage
+
+- query: karpenter_nodepools_usage{namespace=~".+{{.HCP_NAMESPACE}}", resource_type="memory"}
+  metricName: karpenterNodePoolMemoryUsage
+
+- query: sum by (nodepool) (karpenter_nodes_allocatable{namespace=~".+{{.HCP_NAMESPACE}}", resource_type="cpu"})
+  metricName: karpenterNodeAllocatableCpu
+
+- query: sum by (nodepool) (karpenter_nodes_allocatable{namespace=~".+{{.HCP_NAMESPACE}}", resource_type="memory"})
+  metricName: karpenterNodeAllocatableMemory
+
+- query: sum by (nodepool) (karpenter_nodes_total_pod_requests{namespace=~".+{{.HCP_NAMESPACE}}", resource_type="cpu"})
+  metricName: karpenterNodePodRequestsCpu
+
+- query: sum by (nodepool) (karpenter_nodes_total_pod_requests{namespace=~".+{{.HCP_NAMESPACE}}", resource_type="memory"})
+  metricName: karpenterNodePodRequestsMemory
+
+- query: sum by (nodepool) (karpenter_nodes_total_daemon_requests{namespace=~".+{{.HCP_NAMESPACE}}", resource_type="cpu"})
+  metricName: karpenterNodeDaemonRequestsCpu
+
+- query: sum by (resource_type) (karpenter_nodes_total_pod_requests{namespace=~".+{{.HCP_NAMESPACE}}"}) / sum by (resource_type) (karpenter_nodes_allocatable{namespace=~".+{{.HCP_NAMESPACE}}"})
+  metricName: karpenterClusterUtilization
+
+# Scale-Down & Instance Distribution
+- query: sum(karpenter_nodes_total_pod_requests{namespace=~".+{{.HCP_NAMESPACE}}", resource_type="cpu"} * on(node_name) group_left() (karpenter_nodes_current_lifetime_seconds{namespace=~".+{{.HCP_NAMESPACE}}", nodepool!=""} * 0 + 1))
+  metricName: karpenterScaleDownPodCpuRequests
+
+- query: count by (instance_type) (karpenter_nodes_current_lifetime_seconds{namespace=~".+{{.HCP_NAMESPACE}}", nodepool!=""})
+  metricName: karpenterNodeCountByInstanceType
+
+- query: count by (instance_type) (label_replace(karpenter_pods_state{namespace=~".+{{.HCP_NAMESPACE}}", phase="Running", instance_type!=""}, "node_name", "$1", "node", "(.*)") * on(node_name) group_left() (karpenter_nodes_current_lifetime_seconds{namespace=~".+{{.HCP_NAMESPACE}}", nodepool!=""} * 0 + 1))
+  metricName: karpenterInstanceTypeDistribution
+
+# Machine Provisioning metrics (CAPI machines via OBO)
+
+# Count of machines by phase (Provisioning, Provisioned, Running)
+- query: count by (status_phase) (capi_machine_info{exported_namespace=~".+{{.HCP_NAMESPACE}}"})
+  metricName: capiMachineCountByPhase
+
+# Machines not yet ready
+- query: count(capi_machine_info{exported_namespace=~".+{{.HCP_NAMESPACE}}", ready="False"}) or vector(0)
+  metricName: capiMachinesNotReady
+
+# Machines waiting for infrastructure
+- query: count(capi_machine_info{exported_namespace=~".+{{.HCP_NAMESPACE}}", infrastructure_ready="False"}) or vector(0)
+  metricName: capiMachinesInfraNotReady
+
+# Total machine count
+- query: count(capi_machine_info{exported_namespace=~".+{{.HCP_NAMESPACE}}"})
+  metricName: capiMachineCount
+
+# Cluster Autoscaler metrics
+
+# Node count by state (ready, notStarted, unregistered, unready)
+- query: cluster_autoscaler_nodes_count{namespace=~".+{{.HCP_NAMESPACE}}"}
+  metricName: caNodeCount
+
+# Total nodes scaled up (counter)
+- query: cluster_autoscaler_scaled_up_nodes_total{namespace=~".+{{.HCP_NAMESPACE}}"}
+  metricName: caScaledUpNodesTotal
+
+# Total nodes scaled down (counter)
+- query: sum(cluster_autoscaler_scaled_down_nodes_total{namespace=~".+{{.HCP_NAMESPACE}}"})
+  metricName: caScaledDownNodesTotal
+
+# Failed scale-ups (counter)
+- query: sum(cluster_autoscaler_failed_scale_ups_total{namespace=~".+{{.HCP_NAMESPACE}}"})
+  metricName: caFailedScaleUpsTotal
+
+# Unschedulable pods
+- query: cluster_autoscaler_unschedulable_pods_count{namespace=~".+{{.HCP_NAMESPACE}}"}
+  metricName: caUnschedulablePodsCount
+
+# Scale-up decision duration P99
+- query: histogram_quantile(0.99, sum(rate(cluster_autoscaler_function_duration_seconds_bucket{namespace=~".+{{.HCP_NAMESPACE}}", function="scaleUp"}[5m])) by (le))
+  metricName: caScaleUpDurationP99
+
+# CA main loop duration P99
+- query: histogram_quantile(0.99, sum(rate(cluster_autoscaler_function_duration_seconds_bucket{namespace=~".+{{.HCP_NAMESPACE}}", function="main"}[5m])) by (le))
+  metricName: caMainLoopDurationP99
+
+# Safe to autoscale flag
+- query: cluster_autoscaler_cluster_safe_to_autoscale{namespace=~".+{{.HCP_NAMESPACE}}"}
+  metricName: caClusterSafeToAutoscale
+
+# Max nodes limit
+- query: cluster_autoscaler_max_nodes_count{namespace=~".+{{.HCP_NAMESPACE}}"}
+  metricName: caMaxNodesCount
+
+# NodePool metrics
+
+# NodePool desired size vs available replicas
+# hypershift_nodepools_* use cluster_name label for HC filtering (not exported_namespace)
+- query: hypershift_nodepools_size{cluster_name="{{.HC_NAME}}"}
+  metricName: nodepoolSize
+
+- query: hypershift_nodepools_available_replicas{cluster_name="{{.HC_NAME}}"}
+  metricName: nodepoolAvailableReplicas
+
+# NodePool transition time P99 (no cluster_name label on this metric, global across all HCs)
+- query: histogram_quantile(0.99, sum(rate(hypershift_nodepools_transition_seconds_bucket{condition="AllMachinesReady"}[5m])) by (le))
+  metricName: nodepoolAllMachinesReadyP99
+
+- query: histogram_quantile(0.99, sum(rate(hypershift_nodepools_transition_seconds_bucket{condition="AllNodesHealthy"}[5m])) by (le))
+  metricName: nodepoolAllNodesHealthyP99

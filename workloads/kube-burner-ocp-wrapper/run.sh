@@ -18,6 +18,7 @@ GC=${GC:-true}
 EXTRA_FLAGS=${EXTRA_FLAGS:-}
 UUID=${UUID:-$(uuidgen)}
 KUBE_DIR=${KUBE_DIR:-/tmp}
+KUBE_BURNER_OCP_BIN=${KUBE_BURNER_OCP_BIN:-/home/marius/git/kube-burner-ocp/bin/amd64/kube-burner-ocp}
 ES_INDEX=${ES_INDEX:-ripsaw-kube-burner}
 
 download_binary(){
@@ -118,18 +119,20 @@ EOF
     export elapsed=${ELAPSED:-20m}
   fi
   
-  export MC_OBO MC_PROMETHEUS MC_PROMETHEUS_TOKEN HOSTED_PROMETHEUS HOSTED_PROMETHEUS_TOKEN HCP_NAMESPACE MGMT_WORKER_NODES HC_PRODUCT MC_NAME
+  export MC_OBO MC_PROMETHEUS MC_PROMETHEUS_TOKEN HOSTED_PROMETHEUS HOSTED_PROMETHEUS_TOKEN HCP_NAMESPACE HC_NAME MGMT_WORKER_NODES HC_PRODUCT MC_NAME
 
 }
 
-download_binary
+if [[ ! -x ${KUBE_BURNER_OCP_BIN} ]]; then
+  download_binary
+fi
 if [[ ${WORKLOAD} =~ "index" ]]; then
-  cmd="${KUBE_DIR}/kube-burner-ocp index --uuid=${UUID} --start=$START_TIME --end=$((END_TIME+600)) --log-level ${LOG_LEVEL}"
+  cmd="${KUBE_BURNER_OCP_BIN} index --uuid=${UUID} --start=$START_TIME --end=$((END_TIME+600)) --log-level ${LOG_LEVEL}"
   JOB_START=$(date -u -d "@$START_TIME" +"%Y-%m-%dT%H:%M:%SZ")
   JOB_END=$(date -u -d "@$((END_TIME + 600))" +"%Y-%m-%dT%H:%M:%SZ")
   PPROF=false # pporf is not supported for index job, it is not required for index executions.
 else
-  cmd="${KUBE_DIR}/kube-burner-ocp ${WORKLOAD} --log-level=${LOG_LEVEL} --qps=${QPS} --burst=${BURST} --gc=${GC} --uuid ${UUID}"
+  cmd="${KUBE_BURNER_OCP_BIN} ${WORKLOAD} --log-level=${LOG_LEVEL} --qps=${QPS} --burst=${BURST} --gc=${GC} --uuid ${UUID}"
 fi
 cmd+=" ${EXTRA_FLAGS}"
 if [[ ${WORKLOAD} =~ "cluster-density" || ${WORKLOAD} =~ "udn-density-pods" || ${WORKLOAD} =~ "rds-core" || ${WORKLOAD} =~ "network-policy" || ${WORKLOAD} =~ ^(crd-scale|pvc-density|olm|udn-bgp)$ ]]; then
